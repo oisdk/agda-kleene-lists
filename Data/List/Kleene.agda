@@ -134,16 +134,17 @@ module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : B → A → (B × C)) 
     ys : B × C
     ys = f b (head xs)
 
-  mapAccumR⋆ : B → A ⋆ → (B × C ⋆)
-  mapAccumR⁺ : B → A ⁺ → (B × C ⁺)
+module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B → (C × B)) (b : B) where
+  mapAccumR⋆ : A ⋆ → (C ⋆ × B)
+  mapAccumR⁺ : A ⁺ → (C ⁺ × B)
 
-  mapAccumR⋆ b [] = b , []
-  mapAccumR⋆ b [ xs ] = map₂ [_] (mapAccumR⁺ b xs)
+  mapAccumR⋆ [] = [] , b
+  mapAccumR⋆ [ xs ] = map₁ [_] (mapAccumR⁺ xs)
 
-  mapAccumR⁺ b (x & xs) =
-    let y , ys = mapAccumR⋆ b xs
-        z , zs = f y x
-    in z , (zs & ys)
+  mapAccumR⁺ (x & xs) =
+    let ys , y = mapAccumR⋆ xs
+        zs , z = f x y
+    in (zs & ys) , z
 
 module _ {a} {A : Set a} where
   last⁺ : A ⁺ → A
