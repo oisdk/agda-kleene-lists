@@ -129,10 +129,10 @@ module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : B → A → (B × C)) 
   mapAccumL⋆ b [] = b , []
   mapAccumL⋆ b [ xs ] = map₂ [_] (mapAccumL⁺ b xs)
 
-  mapAccumL⁺ b xs = map₂ (proj₂ ys &_) (mapAccumL⋆ (proj₁ ys) (tail xs))
-    where
-    ys : B × C
-    ys = f b (head xs)
+  mapAccumL⁺ b (x & xs) =
+    let y , ys = f b x
+        z , zs = mapAccumL⋆ y xs
+    in z , (ys & zs)
 
 module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B → (C × B)) (b : B) where
   mapAccumR⋆ : A ⋆ → (C ⋆ × B)
