@@ -73,10 +73,6 @@ module _ {a} {A : Set a} where
   []     ⋆++⁺ ys = ys
   [ xs ] ⋆++⁺ ys = xs ⁺++⁺ ys
 
-  [_]→head : (A → A) → A ⁺ → A ⁺
-  head ([ f ]→head xs) = f (head xs)
-  tail ([ f ]→head xs) = tail xs
-
 module _ {a b} {A : Set a} {B : Set b} where
   _⁺>>=⁺_ : A ⁺ → (A → B ⁺) → B ⁺
   _⁺>>=⋆_ : A ⁺ → (A → B ⋆) → B ⋆
@@ -147,13 +143,9 @@ module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B → (C × B)) 
     in (zs & ys) , z
 
 module _ {a} {A : Set a} where
-  last⁺ : A ⁺ → A
-  last⋆ : A → A ⋆ → A
-
-  last⁺ (x & xs) = last⋆ x xs
-
-  last⋆ x [] = x
-  last⋆ x [ xs ] = last⁺ xs
+  last : A ⁺ → A
+  last (x & []) = x
+  last (_ & [ xs ]) = last xs
 
 module _ {a} {A : Set a} (f : A → A → A) where
   foldr1 : A ⁺ → A
@@ -243,3 +235,20 @@ module _ {a} {A : Set a} where
 
   ⁺transpose⁺ (x & []) = map⁺ pure⁺ x
   ⁺transpose⁺ (x & [ xs ]) = ⁺zipWith⁺ (λ y z → y & [ z ]) x (⁺transpose⁺ xs)
+
+module _ {a} {A : Set a} where
+  tails⋆ : A ⋆ → (A ⁺) ⋆
+  tails⁺ : A ⁺ → (A ⁺) ⁺
+
+  head (tails⁺ xs) = xs
+  tail (tails⁺ xs) = tails⋆ (tail xs)
+
+  tails⋆ [] = []
+  tails⋆ [ xs ] = [ tails⁺ xs ]
+
+module _ {a} {A : Set a} where
+  reverse⋆ : A ⋆ → A ⋆
+  reverse⋆ = foldl⋆ (λ xs x → x ∷ xs) []
+
+  reverse⁺ : A ⁺ → A ⁺
+  reverse⁺ (x & xs) = foldl⋆ (λ ys y → y & [ ys ]) (x & []) xs
