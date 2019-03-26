@@ -1,18 +1,29 @@
 {-# OPTIONS --without-K --safe #-}
 
+------------------------------------------------------------------------
 -- Lists, based on the Kleene star and plus.
 --
 -- These lists are exatcly equivalent to normal lists, except the "cons"
 -- case is split into its own data type. This lets us write all the same
 -- functions as before, but it has 2 advantages:
 --
--- * It automatically gives us a "nonempty" list type. This lets us write
---   all of the functions on that type that we would normally have return
---   a maybe or something.
--- * It makes certain proofs much easier, by avoiding a pattern-matching
---   step.
+-- * Some functions are easier to express on the non-empty type. For
+--   instance, head can be clearly expressed without the need for
+--   maybes.
+-- * It can make some proofs easier. By using the non-empty type where
+--   possible, we can avoid an extra pattern match, which can really
+--   simplify certain proofs.
 
 module Data.List.Kleene.Base where
+
+open import Data.Product as Product using (_×_; _,_; map₂; map₁)
+open import Data.Nat     as ℕ       using (ℕ; suc; zero)
+open import Data.Maybe   as Maybe   using (Maybe; just; nothing)
+
+open import Function
+
+------------------------------------------------------------------------
+-- Definitions
 
 infixr 5 _&_ ∹_
 mutual
@@ -24,10 +35,14 @@ mutual
       head : A
       tail : A ⋆
 
+  -- Possibly Empty Lists
   data _⋆ {a} (A : Set a) : Set a where
     [] : A ⋆
     ∹_ : A ⁺ → A ⋆
 open _⁺ public
+
+------------------------------------------------------------------------
+-- Folds
 
 module _ {a b} {A : Set a} {B : Set b} (f : A → B → B) (b : B) where
   foldr⁺ : A ⁺ → B
@@ -47,25 +62,10 @@ module _ {a b} {A : Set a} {B : Set b} (f : B → A → B) where
   foldl⋆ b [] = b
   foldl⋆ b (∹ xs) = foldl⁺ b xs
 
-module _ {a b} {A : Set a} {B : Set b} (f : A → B) where
-  map⁺ : A ⁺ → B ⁺
-  map⋆ : A ⋆ → B ⋆
-
-  head (map⁺ xs) = f (head xs)
-  tail (map⁺ xs) = map⋆ (tail xs)
-
-  map⋆ [] = []
-  map⋆ (∹ xs) = ∹ map⁺ xs
+------------------------------------------------------------------------
+-- Concatenation
 
 module _ {a} {A : Set a} where
-  pure⁺ : A → A ⁺
-  pure⋆ : A → A ⋆
-
-  head (pure⁺ x) = x
-  tail (pure⁺ x) = []
-
-  pure⋆ x = ∹ pure⁺ x
-
   _⁺++⁺_ : A ⁺ → A ⁺ → A ⁺
   _⁺++⋆_ : A ⁺ → A ⋆ → A ⁺
   _⋆++⁺_ : A ⋆ → A ⁺ → A ⁺
@@ -83,6 +83,50 @@ module _ {a} {A : Set a} where
   []     ⋆++⁺ ys = ys
   (∹ xs) ⋆++⁺ ys = xs ⁺++⁺ ys
 
+------------------------------------------------------------------------
+-- Mapping
+
+module _ {a b} {A : Set a} {B : Set b} (f : A → B) where
+  map⁺ : A ⁺ → B ⁺
+  map⋆ : A ⋆ → B ⋆
+
+  head (map⁺ xs) = f (head xs)
+  tail (map⁺ xs) = map⋆ (tail xs)
+
+  map⋆ [] = []
+  map⋆ (∹ xs) = ∹ map⁺ xs
+
+------------------------------------------------------------------------
+-- Applicative Operations
+
+module _ {a} {A : Set a} where
+  pure⁺ : A → A ⁺
+  pure⋆ : A → A ⋆
+
+  head (pure⁺ x) = x
+  tail (pure⁺ x) = []
+
+  pure⋆ x = ∹ pure⁺ x
+
+module _ {a b} {A : Set a} {B : Set b} where
+  _⋆<*>⋆_ : (A → B) ⋆ → A ⋆ → B ⋆
+  _⁺<*>⋆_ : (A → B) ⁺ → A ⋆ → B ⋆
+  _⋆<*>⁺_ : (A → B) ⋆ → A ⁺ → B ⋆
+  _⁺<*>⁺_ : (A → B) ⁺ → A ⁺ → B ⁺
+
+  []     ⋆<*>⋆ xs = []
+  (∹ fs) ⋆<*>⋆ xs = fs ⁺<*>⋆ xs
+
+  fs ⁺<*>⋆ xs = map⋆ (head fs) xs ⋆++⋆ (tail fs ⋆<*>⋆ xs)
+
+  []     ⋆<*>⁺ xs = []
+  (∹ fs) ⋆<*>⁺ xs = ∹ fs ⁺<*>⁺ xs
+
+  fs ⁺<*>⁺ xs = map⁺ (head fs) xs ⁺++⋆ (tail fs ⋆<*>⁺ xs)
+
+------------------------------------------------------------------------
+-- Monadic Operations
+
 module _ {a b} {A : Set a} {B : Set b} where
   _⁺>>=⁺_ : A ⁺ → (A → B ⁺) → B ⁺
   _⁺>>=⋆_ : A ⁺ → (A → B ⋆) → B ⋆
@@ -98,6 +142,9 @@ module _ {a b} {A : Set a} {B : Set b} where
 
   []     ⋆>>=⁺ k = []
   (∹ xs) ⋆>>=⁺ k = ∹ xs ⁺>>=⁺ k
+
+------------------------------------------------------------------------
+-- Scans
 
 module _ {a b} {A : Set a} {B : Set b} (f : A → B → B) (b : B) where
   scanr⁺ : A ⁺ → B ⁺
@@ -126,7 +173,8 @@ module _ {a b} {A : Set a} {B : Set b} (f : B → A → B) where
   scanl₁ : B → A ⁺ → B ⁺
   scanl₁ b xs = scanl⋆ (f b (head xs)) (tail xs)
 
-open import Data.Product
+------------------------------------------------------------------------
+-- Accumulating maps
 
 module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : B → A → (B × C)) where
   mapAccumL⋆ : B → A ⋆ → (B × C ⋆)
@@ -152,6 +200,9 @@ module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B → (C × B)) 
         zs , z = f x y
     in (zs & ys) , z
 
+------------------------------------------------------------------------
+-- Non-Empty Folds
+
 module _ {a} {A : Set a} where
   last : A ⁺ → A
   last (x & []) = x
@@ -165,23 +216,8 @@ module _ {a} {A : Set a} (f : A → A → A) where
   foldl1 : A ⁺ → A
   foldl1 (x & xs) = foldl⋆ f x xs
 
-module _ {a} {A : Set a} (x : A) where
-  intersperse⁺ : A ⁺ → A ⁺
-  intersperse⋆ : A ⋆ → A ⋆
-
-  head (intersperse⁺ xs) = head xs
-  tail (intersperse⁺ xs) = prepend (tail xs)
-    where
-    prepend : A ⋆ → A ⋆
-    prepend [] = []
-    prepend (∹ xs) = ∹ x & ∹ intersperse⁺ xs
-
-  intersperse⋆ [] = []
-  intersperse⋆ (∹ xs) = ∹ intersperse⁺ xs
-
-open import Data.Nat
-open import Data.Maybe
-open import Function
+------------------------------------------------------------------------
+-- Indexing
 
 module _ {a} {A : Set a} where
   _[_]⋆ : A ⋆ → ℕ → Maybe A
@@ -201,6 +237,23 @@ module _ {a} {A : Set a} where
 
   head (applyUpTo⁺ f n) = f zero
   tail (applyUpTo⁺ f n) = applyUpTo⋆ (f ∘ suc) n
+
+------------------------------------------------------------------------
+-- Manipulation
+
+module _ {a} {A : Set a} (x : A) where
+  intersperse⁺ : A ⁺ → A ⁺
+  intersperse⋆ : A ⋆ → A ⋆
+
+  head (intersperse⁺ xs) = head xs
+  tail (intersperse⁺ xs) = prepend (tail xs)
+    where
+    prepend : A ⋆ → A ⋆
+    prepend [] = []
+    prepend (∹ xs) = ∹ x & ∹ intersperse⁺ xs
+
+  intersperse⋆ [] = []
+  intersperse⋆ (∹ xs) = ∹ intersperse⁺ xs
 
 module _ {a} {A : Set a} where
   _⁺<|>⁺_ : A ⁺ → A ⁺ → A ⁺
