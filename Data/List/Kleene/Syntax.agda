@@ -19,7 +19,7 @@ infixr 4 ⋆[_ ⁺[_ [_
 
 ⁺[_ : ∀ {a} {A : Set a} → ListSyntax A → A ⁺
 ⁺[ x ] = x & []
-⁺[ (x , xs) = x & ∹ (⁺[ xs)
+⁺[ x , xs = x & ∹ (⁺[ xs)
 
 [_ : ∀ {a} {A : Set a} → ListSyntax A → List A
 [ x ] = x ∷ []
