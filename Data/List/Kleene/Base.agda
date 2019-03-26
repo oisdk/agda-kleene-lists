@@ -75,11 +75,9 @@ module _ {a} {A : Set a} where
   head (xs ⁺++⋆ ys) = head xs
   tail (xs ⁺++⋆ ys) = tail xs ⋆++⋆ ys
 
-  []     ⋆++⋆ ys = ys
-  (∹ xs) ⋆++⋆ ys = ∹ xs ⁺++⋆ ys
+  xs ⋆++⋆ ys = foldr⋆ (λ x zs → ∹ x & zs) ys xs
 
-  head (xs ⁺++⁺ ys) = head xs
-  tail (xs ⁺++⁺ ys) = ∹ tail xs ⋆++⁺ ys
+  xs ⁺++⁺ ys = foldr⁺ (λ x zs → x & ∹ zs) ys xs
 
   []     ⋆++⁺ ys = ys
   (∹ xs) ⋆++⁺ ys = xs ⁺++⁺ ys
@@ -147,18 +145,17 @@ module _ {a b} {A : Set a} {B : Set b} where
 ------------------------------------------------------------------------
 -- Scans
 
-module _ {a b} {A : Set a} {B : Set b} (f : A → B → B) (b : B) where
+module Scanr {a b} {A : Set a} {B : Set b} (f : A → B → B) (b : B) where
+  cons : A → B ⁺ → B ⁺
+  head (cons x xs) = f x (head xs)
+  tail (cons x xs) = ∹ xs
+
   scanr⁺ : A ⁺ → B ⁺
   scanr⋆ : A ⋆ → B ⁺
 
-  scanr⋆ []     = b & []
-  scanr⋆ (∹ xs) = scanr⁺ xs
-
-  scanr⁺ xs = go (scanr⋆ (tail xs))
-    where
-    go : B ⁺ → B ⁺
-    head (go ys) = f (head xs) (head ys)
-    tail (go ys) = (∹ ys)
+  scanr⋆ = foldr⋆ cons (b & [])
+  scanr⁺ = foldr⁺ cons (b & [])
+open Scanr public using (scanr⁺; scanr⋆)
 
 module _ {a b} {A : Set a} {B : Set b} (f : B → A → B) where
   scanl⁺ : B → A ⁺ → B ⁺
@@ -216,6 +213,15 @@ module _ {a} {A : Set a} (f : A → A → A) where
 
   foldl1 : A ⁺ → A
   foldl1 (x & xs) = foldl⋆ f x xs
+
+module _ {a b} {A : Set a} {B : Set b} (f : A → Maybe B → B) where
+  foldrMay⋆ : A ⋆ → Maybe B
+  foldrMay⁺ : A ⁺ → B
+
+  foldrMay⋆ [] = nothing
+  foldrMay⋆ (∹ xs) = just (foldrMay⁺ xs)
+
+  foldrMay⁺ xs = f (head xs) (foldrMay⋆ (tail xs))
 
 ------------------------------------------------------------------------
 -- Indexing
@@ -293,36 +299,35 @@ module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B → C) where
   ⋆zipWith⋆ [] ys = []
   ⋆zipWith⋆ (∹ xs) ys = ⁺zipWith⋆ xs ys
 
-module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B × C) where
+module Unzip {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B × C) where
+  cons : B × C → B ⋆ × C ⋆ → B ⁺ × C ⁺
+  head (proj₁ (cons x xs)) = proj₁ x
+  tail (proj₁ (cons x xs)) = proj₁ xs
+  head (proj₂ (cons x xs)) = proj₂ x
+  tail (proj₂ (cons x xs)) = proj₂ xs
+
   unzipWith⋆ : A ⋆ → B ⋆ × C ⋆
   unzipWith⁺ : A ⁺ → B ⁺ × C ⁺
 
-  unzipWith⋆ [] = [] , []
-  unzipWith⋆ (∹ xs) = Product.map ∹_ ∹_ (unzipWith⁺ xs)
+  unzipWith⋆ = foldr⋆ (λ x xs → Product.map ∹_ ∹_ (cons (f x) xs)) ([] , [])
 
-  unzipWith⁺ xs = go (f (head xs)) (unzipWith⋆ (tail xs))
-    where
-    go : B × C → B ⋆ × C ⋆ → B ⁺ × C ⁺
-    head (proj₁ (go y ys)) = proj₁ y
-    tail (proj₁ (go y ys)) = proj₁ ys
-    head (proj₂ (go y ys)) = proj₂ y
-    tail (proj₂ (go y ys)) = proj₂ ys
+  unzipWith⁺ xs = cons (f (head xs)) (unzipWith⋆ (tail xs))
+open Unzip using (unzipWith⁺; unzipWith⋆) public
 
+module Partition {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B ⊎ C) where
+  cons : B ⊎ C → B ⋆ × C ⋆ → B ⋆ × C ⋆
+  proj₁ (cons (inj₁ x) xs) = ∹ x & proj₁ xs
+  proj₂ (cons (inj₁ x) xs) = proj₂ xs
+  proj₂ (cons (inj₂ x) xs) = ∹ x & proj₂ xs
+  proj₁ (cons (inj₂ x) xs) = proj₁ xs
 
-module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B ⊎ C) where
   partitionSumsWith⋆ : A ⋆ → B ⋆ × C ⋆
   partitionSumsWith⁺ : A ⁺ → B ⋆ × C ⋆
 
-  partitionSumsWith⋆ [] = [] , []
-  partitionSumsWith⋆ (∹ xs) = partitionSumsWith⁺ xs
+  partitionSumsWith⋆ = foldr⋆ (cons ∘ f) ([] , [])
 
-  partitionSumsWith⁺ xs = go (f (head xs)) (partitionSumsWith⋆ (tail xs))
-    where
-    go : B ⊎ C → B ⋆ × C ⋆ → B ⋆ × C ⋆
-    proj₁ (go (inj₁ y) ys) = ∹ y & proj₁ ys
-    proj₂ (go (inj₁ y) ys) = proj₂ ys
-    proj₂ (go (inj₂ y) ys) = ∹ y & proj₂ ys
-    proj₁ (go (inj₂ y) ys) = proj₁ ys
+  partitionSumsWith⁺ = foldr⁺ (cons ∘ f) ([] , [])
+open Partition using (partitionSumsWith⁺; partitionSumsWith⋆) public
 
 module _ {a} {A : Set a} where
   ⋆transpose⋆ : (A ⋆) ⋆ → (A ⋆) ⋆
