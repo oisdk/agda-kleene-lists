@@ -16,9 +16,10 @@
 
 module Data.List.Kleene.Base where
 
-open import Data.Product as Product using (_×_; _,_; map₂; map₁)
+open import Data.Product as Product using (_×_; _,_; map₂; map₁; proj₁; proj₂)
 open import Data.Nat     as ℕ       using (ℕ; suc; zero)
 open import Data.Maybe   as Maybe   using (Maybe; just; nothing)
+open import Data.Sum     as Sum     using (_⊎_; inj₁; inj₂)
 
 open import Function
 
@@ -273,6 +274,7 @@ module _ {a} {A : Set a} where
   []     ⋆<|>⋆ ys = ys
   (∹ xs) ⋆<|>⋆ ys = ∹ (xs ⁺<|>⋆ ys)
 
+
 module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B → C) where
   ⁺zipWith⁺ : A ⁺ → B ⁺ → C ⁺
   ⋆zipWith⁺ : A ⋆ → B ⁺ → C ⋆
@@ -290,6 +292,37 @@ module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B → C) where
 
   ⋆zipWith⋆ [] ys = []
   ⋆zipWith⋆ (∹ xs) ys = ⁺zipWith⋆ xs ys
+
+module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B × C) where
+  unzipWith⋆ : A ⋆ → B ⋆ × C ⋆
+  unzipWith⁺ : A ⁺ → B ⁺ × C ⁺
+
+  unzipWith⋆ [] = [] , []
+  unzipWith⋆ (∹ xs) = Product.map ∹_ ∹_ (unzipWith⁺ xs)
+
+  unzipWith⁺ xs = go (f (head xs)) (unzipWith⋆ (tail xs))
+    where
+    go : B × C → B ⋆ × C ⋆ → B ⁺ × C ⁺
+    head (proj₁ (go y ys)) = proj₁ y
+    tail (proj₁ (go y ys)) = proj₁ ys
+    head (proj₂ (go y ys)) = proj₂ y
+    tail (proj₂ (go y ys)) = proj₂ ys
+
+
+module _ {a b c} {A : Set a} {B : Set b} {C : Set c} (f : A → B ⊎ C) where
+  partitionSumsWith⋆ : A ⋆ → B ⋆ × C ⋆
+  partitionSumsWith⁺ : A ⁺ → B ⋆ × C ⋆
+
+  partitionSumsWith⋆ [] = [] , []
+  partitionSumsWith⋆ (∹ xs) = partitionSumsWith⁺ xs
+
+  partitionSumsWith⁺ xs = go (f (head xs)) (partitionSumsWith⋆ (tail xs))
+    where
+    go : B ⊎ C → B ⋆ × C ⋆ → B ⋆ × C ⋆
+    proj₁ (go (inj₁ y) ys) = ∹ y & proj₁ ys
+    proj₂ (go (inj₁ y) ys) = proj₂ ys
+    proj₂ (go (inj₂ y) ys) = ∹ y & proj₂ ys
+    proj₁ (go (inj₂ y) ys) = proj₁ ys
 
 module _ {a} {A : Set a} where
   ⋆transpose⋆ : (A ⋆) ⋆ → (A ⋆) ⋆
