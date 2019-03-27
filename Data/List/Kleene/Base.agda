@@ -245,6 +245,12 @@ module _ {a} {A : Set a} where
   head (applyUpTo⁺ f n) = f zero
   tail (applyUpTo⁺ f n) = applyUpTo⋆ (f ∘ suc) n
 
+upTo⋆ : ℕ → ℕ ⋆
+upTo⋆ = applyUpTo⋆ id
+
+upTo⁺ : ℕ → ℕ ⁺
+upTo⁺ = applyUpTo⁺ id
+
 ------------------------------------------------------------------------
 -- Manipulation
 
