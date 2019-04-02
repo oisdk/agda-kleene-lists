@@ -20,6 +20,7 @@ open import Data.Product as Product using (_×_; _,_; map₂; map₁; proj₁; p
 open import Data.Nat     as ℕ       using (ℕ; suc; zero)
 open import Data.Maybe   as Maybe   using (Maybe; just; nothing)
 open import Data.Sum     as Sum     using (_⊎_; inj₁; inj₂)
+open import Algebra
 
 open import Function
 
@@ -41,6 +42,23 @@ mutual
     [] : A ⋆
     ∹_ : A ⁺ → A ⋆
 open _⁺ public
+
+------------------------------------------------------------------------
+-- FoldMap
+
+module _ {c ℓ a} (sgrp : Semigroup c ℓ) {A : Set a} where
+  open Semigroup sgrp
+
+  foldMap⁺ : (A → Carrier) → A ⁺ → Carrier
+  foldMap⁺ f (x & []) = f x
+  foldMap⁺ f (x & ∹ xs) = f x ∙ foldMap⁺ f xs
+
+module _ {c ℓ a} (mon : Monoid c ℓ) {A : Set a} where
+  open Monoid mon
+
+  foldMap⋆ : (A → Carrier) → A ⋆ → Carrier
+  foldMap⋆ f [] = ε
+  foldMap⋆ f (∹ xs) = foldMap⁺ semigroup f xs
 
 ------------------------------------------------------------------------
 -- Folds
